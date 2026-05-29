@@ -20,6 +20,8 @@ class User(Base):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
 
 
+# Фрагменти коду для models.py
+
 class Client(Base):
     __tablename__ = "clients"
 
@@ -27,6 +29,7 @@ class Client(Base):
     full_name = Column(String(150), nullable=False)
     phone = Column(String(20), nullable=False)
     email = Column(String(100))
+    is_active = Column(Boolean, default=True)  # Додано для soft-delete
 
     devices = relationship("Device", back_populates="client")
     orders = relationship("Order", back_populates="client")
@@ -41,6 +44,7 @@ class Device(Base):
     brand = Column(String(50), nullable=False)
     model = Column(String(50), nullable=False)
     serial_number = Column(String(100))
+    is_active = Column(Boolean, default=True)  # Додано для soft-delete
 
     client = relationship("Client", back_populates="devices")
     orders = relationship("Order", back_populates="device")
