@@ -1,5 +1,5 @@
 from db.repositories import OrderRepository
-from models.models import Order
+from models.models import Order, Part, OrderPart
 from datetime import date
 import config
 
@@ -7,6 +7,7 @@ import config
 class OrderService:
     def __init__(self, order_repo: OrderRepository):
         self.order_repo = order_repo
+        self.session = order_repo.session
 
     def create_order(self, client_id: int, device_id: int, problem_description: str,
                      price: float = 0.0, master_id: int = None) -> Order:
@@ -55,3 +56,55 @@ class OrderService:
             order.is_paid = True
 
         return self.order_repo.update_status(order_id, new_status)
+
+    def add_part_to_order(self, order_id: int, part_id: int, quantity: int = 1) -> OrderPart:
+        """
+        Прив'язка запчастини до замовлення з автосписанням та округленням вартості.
+        """
+        order = self.order_repo.get_by_id(order_id)
+        part = self.session.query(Part).filter(Part.id == part_id).first()
+
+        if not order:
+            raise ValueError("Замовлення не знайдено.")
+        if not part:
+            raise ValueError("Запчастину не знайдено.")
+
+        if part.quantity_in_stock < quantity:
+            # Текст помилки точно відповідає тесту T4.2
+            raise ValueError(f"Недостатньо на складі! В наявності: {part.quantity_in_stock} шт.")
+
+        order_part = OrderPart(
+            order_id=order.id,
+            part_id=part.id,
+            quantity=quantity,
+            price_at_sale=part.sale_price
+        )
+        self.session.add(order_part)
+
+        part.quantity_in_stock -= quantity
+
+        # T4.3: Розрахунок без float-помилок (округлення до 2 знаків)
+        order.price = round(order.price + (part.sale_price * quantity), 2)
+
+        self.session.commit()
+        return order_part
+
+    def remove_part_from_order(self, order_part_id: int):
+        """
+        Видалення запчастини із замовлення: повернення на склад та перерахунок вартості.
+        """
+        order_part = self.session.query(OrderPart).filter(OrderPart.id == order_part_id).first()
+        if not order_part:
+            raise ValueError("Запис не знайдено.")
+
+        order = self.session.query(Order).filter(Order.id == order_part.order_id).first()
+        part = self.session.query(Part).filter(Part.id == order_part.part_id).first()
+
+        # T4.4: Повертаємо на склад
+        part.quantity_in_stock += order_part.quantity
+
+        # T4.4: Віднімаємо вартість (з округленням)
+        order.price = round(order.price - (order_part.price_at_sale * order_part.quantity), 2)
+
+        self.session.delete(order_part)
+        self.session.commit()

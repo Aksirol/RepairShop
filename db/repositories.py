@@ -1,4 +1,5 @@
 from models.models import Client, Device
+from models.models import Part
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
@@ -127,3 +128,34 @@ class OrderRepository:
         if master_id:
             query = query.filter(Order.master_id == master_id)
         return query.order_by(Order.received_at.desc()).all()
+
+class PartRepository:
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, name: str, vendor_code: str, quantity: int, purchase_price: float, sale_price: float) -> Part:
+        part = Part(
+            name=name,
+            vendor_code=vendor_code,
+            quantity_in_stock=quantity,
+            purchase_price=purchase_price,
+            sale_price=sale_price
+        )
+        self.session.add(part)
+        self.session.commit()
+        self.session.refresh(part)
+        return part
+
+    def get_all(self):
+        """Отримує всі запчастини, сортуючи ті, що закінчуються, нагору"""
+        return self.session.query(Part).order_by(Part.quantity_in_stock.asc()).all()
+
+    def get_by_id(self, part_id: int) -> Part:
+        return self.session.query(Part).filter(Part.id == part_id).first()
+
+    def update_stock(self, part_id: int, quantity_added: int):
+        part = self.get_by_id(part_id)
+        if part:
+            part.quantity_in_stock += quantity_added
+            self.session.commit()
+        return part
