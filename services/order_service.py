@@ -108,3 +108,22 @@ class OrderService:
 
         self.session.delete(order_part)
         self.session.commit()
+
+    def process_payment(self, order_id: int) -> Order:
+        """
+        Фіксація оплати замовлення.
+        """
+        order = self.order_repo.get_by_id(order_id)
+        if not order:
+            raise ValueError("Замовлення не знайдено.")
+
+        if order.is_paid:
+            raise ValueError("Замовлення вже оплачено.")
+
+        if order.status not in [config.STATUS_DONE, config.STATUS_ISSUED]:
+            raise ValueError("Оплатити можна лише замовлення у статусі 'Готово' або 'Видано'.")
+
+        order.is_paid = True
+        # Якщо є поле payment_date у вашій БД, можна додати: order.payment_date = date.today()
+        self.session.commit()
+        return order
