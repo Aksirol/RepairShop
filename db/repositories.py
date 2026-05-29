@@ -81,3 +81,49 @@ class DeviceRepository:
             device.is_active = False
             self.session.commit()
         return device
+
+
+from models.models import Order
+from datetime import date
+
+
+class OrderRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def create(self, client_id: int, device_id: int, problem_description: str,
+               status: str, price: float = 0.0, master_id: int = None) -> Order:
+        order = Order(
+            client_id=client_id,
+            device_id=device_id,
+            master_id=master_id,
+            received_at=date.today(),
+            status=status,
+            problem_description=problem_description,
+            price=price
+        )
+        self.session.add(order)
+        self.session.commit()
+        self.session.refresh(order)
+        return order
+
+    def get_by_id(self, order_id: int) -> Order:
+        return self.session.query(Order).filter(Order.id == order_id).first()
+
+    def get_all(self):
+        return self.session.query(Order).order_by(Order.received_at.desc()).all()
+
+    def update_status(self, order_id: int, new_status: str):
+        order = self.get_by_id(order_id)
+        if order:
+            order.status = new_status
+            self.session.commit()
+        return order
+
+    def filter_orders(self, status: str = None, master_id: int = None):
+        query = self.session.query(Order)
+        if status:
+            query = query.filter(Order.status == status)
+        if master_id:
+            query = query.filter(Order.master_id == master_id)
+        return query.order_by(Order.received_at.desc()).all()
