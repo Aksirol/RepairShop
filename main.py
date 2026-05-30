@@ -74,24 +74,25 @@ class MainWindow(ctk.CTk):
             frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
     def show_frame(self, frame_name):
-        """Перемикач активного вікна"""
+        """Перемикач активного вікна з автоматичним оновленням даних на вкладках"""
         # Ховаємо всі фрейми, відправляючи їх на задній план
         for frame in self.frames.values():
             frame.grid_remove()
 
-        # Показуємо потрібний
+        # Показуємо обраний фрейм
         frame = self.frames[frame_name]
         frame.grid()
 
-        # Якщо в фреймі є метод оновлення даних (наприклад, load_clients), викликаємо його
-        if hasattr(frame, 'load_clients') and frame_name == "clients":
+        # Виклик методів синхронізації даних з БД при переході на вкладку
+        if frame_name == "clients" and hasattr(frame, 'load_clients'):
             frame.load_clients()
-        elif hasattr(frame, 'load_dashboard_data') and frame_name == "dashboard":
+        elif frame_name == "dashboard" and hasattr(frame, 'load_dashboard_data'):
             frame.load_dashboard_data()
-        elif hasattr(frame, 'load_parts') and frame_name == "parts":
+        elif frame_name == "parts" and hasattr(frame, 'load_parts'):
             frame.load_parts()
-        elif hasattr(frame, 'load_orders') and frame_name == "orders":
-            frame.load_orders()
+        elif frame_name == "orders" and hasattr(frame, 'refresh_data'):
+            # Викликаємо комплексне оновлення комбобоксів та замовлень
+            frame.refresh_data()
 
 
 def start_app(user_role):
