@@ -80,11 +80,14 @@ class OrdersView(ctk.CTkFrame):
         self.scrollable_frame = ctk.CTkScrollableFrame(self.list_frame, label_text="Активні замовлення в системі")
         self.scrollable_frame.pack(padx=10, pady=5, fill="both", expand=True)
 
+        # ВИПРАВЛЕННЯ 1: Створюємо масив для безпечного відстеження віджетів списку
+        self.order_widgets = []
+
         # Первинне завантаження вмісту екрану
         self.refresh_data()
 
     def refresh_data(self):
-        """Комплексний метод оновлення інтерфейсу (викликається також при переході на вкладку)"""
+        """Комплексний метод оновлення інтерфейсу"""
         self.load_clients_to_combo()
         self.load_orders()
 
@@ -102,7 +105,6 @@ class OrdersView(ctk.CTkFrame):
 
             if combo_values:
                 self.combo_client.configure(values=combo_values)
-                # Якщо поточне значення збилося або порожнє, ставимо перше доступне
                 current_selection = self.combo_client.get()
                 if current_selection not in combo_values:
                     self.combo_client.set(combo_values[0])
@@ -179,6 +181,9 @@ class OrdersView(ctk.CTkFrame):
                 price=price
             )
 
+            # ВИПРАВЛЕННЯ 2: Примусове оновлення об'єкта, щоб SQLAlchemy підтягнув order.client для генерації PDF
+            self.db_session.refresh(order)
+
             # Автоматична генерація друкованої PDF-квитанції
             pdf_path = generate_receipt(order)
 
@@ -192,6 +197,8 @@ class OrdersView(ctk.CTkFrame):
             self.load_orders()
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()  # Виведе деталі в консоль для діагностики
             messagebox.showerror("Помилка", f"Критична помилка при створенні замовлення: {e}")
 
     def load_orders(self, choice=None):
@@ -202,13 +209,16 @@ class OrdersView(ctk.CTkFrame):
 
             orders = self.order_repo.filter_orders(status=status)
 
-            # Очищення старих віджетів у списку
-            for widget in self.scrollable_frame.winfo_children():
+            # ВИПРАВЛЕННЯ 1: Безпечне очищення списку через масив віджетів
+            for widget in self.order_widgets:
                 widget.destroy()
+            self.order_widgets.clear()
 
             if not orders:
-                ctk.CTkLabel(self.scrollable_frame, text="Замовлень із таким статусом не знайдено",
-                             font=("Arial", 12, "italic")).pack(pady=10)
+                lbl = ctk.CTkLabel(self.scrollable_frame, text="Замовлень із таким статусом не знайдено",
+                                   font=("Arial", 12, "italic"))
+                lbl.pack(pady=10)
+                self.order_widgets.append(lbl)
                 return
 
             for o in orders:
@@ -219,5 +229,11 @@ class OrdersView(ctk.CTkFrame):
 
                 lbl = ctk.CTkLabel(self.scrollable_frame, text=item_text, font=("Arial", 12), anchor="w")
                 lbl.pack(anchor="w", pady=4, padx=5, fill="x")
+
+                # Додаємо у масив для подальшого безпечного видалення
+                self.order_widgets.append(lbl)
+
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"Помилка завантаження реєстру замовлень: {e}")
