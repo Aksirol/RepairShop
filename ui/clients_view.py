@@ -44,7 +44,7 @@ class ClientsView(ctk.CTkFrame):
         self.scrollable_frame = ctk.CTkScrollableFrame(self.list_frame, label_text="Список клієнтів")
         self.scrollable_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
-        self.order_widgets = []
+        self.client_widgets = []
 
         self.load_clients()
 
@@ -65,14 +65,18 @@ class ClientsView(ctk.CTkFrame):
             messagebox.showerror("Помилка", "Невірний формат email!")
             return
 
-        self.client_repo.create(name, phone, email)
-        messagebox.showinfo("Успіх", "Клієнта успішно додано!")
+        try:
+            self.client_repo.create(name, phone, email)
+            messagebox.showinfo("Успіх", "Клієнта успішно додано!")
 
-        # Очищення полів
-        self.entry_name.delete(0, 'end')
-        self.entry_phone.delete(0, 'end')
-        self.entry_email.delete(0, 'end')
-        self.load_clients()
+            # Очищення полів
+            self.entry_name.delete(0, 'end')
+            self.entry_phone.delete(0, 'end')
+            self.entry_email.delete(0, 'end')
+            self.load_clients()
+        except ValueError as e:
+            # Перехоплення помилки (дублікат телефону)
+            messagebox.showerror("Помилка", str(e))
 
     def load_clients(self, search_query=""):
         # БЕЗПЕЧНЕ ОЧИЩЕННЯ

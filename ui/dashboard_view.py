@@ -4,6 +4,10 @@ import datetime
 from models.database import SessionLocal
 from services.report_service import ReportService
 import os
+import shutil
+import datetime
+from tkinter import filedialog
+import config
 
 
 class DashboardView(ctk.CTkFrame):
@@ -44,6 +48,9 @@ class DashboardView(ctk.CTkFrame):
                                                command=self.generate_monthly_report)
         self.btn_period_report.pack(pady=10)
 
+        self.btn_backup = ctk.CTkButton(self.actions_frame, text="Створити резервну копію БД", command=self.backup_db)
+        self.btn_backup.pack(pady=10)
+
         self.load_dashboard_data()
 
     def load_dashboard_data(self):
@@ -70,3 +77,18 @@ class DashboardView(ctk.CTkFrame):
                 os.startfile(path)
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося згенерувати звіт:\n{e}")
+
+    def backup_db(self):
+        """Створення резервної копії бази даних SQLite"""
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".db",
+            filetypes=[("SQLite Database", "*.db"), ("Всі файли", "*.*")],
+            initialfile=f"backup_repair_shop_{datetime.date.today()}.db",
+            title="Зберегти резервну копію"
+        )
+        if file_path:
+            try:
+                shutil.copy2(config.DB_PATH, file_path)
+                messagebox.showinfo("Успіх", f"Резервну копію успішно збережено!\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("Помилка", f"Не вдалося створити копію:\n{e}")

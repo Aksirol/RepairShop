@@ -1,6 +1,7 @@
 from models.models import Client, Device
 from models.models import Part
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 
 
@@ -40,6 +41,11 @@ class ClientRepository:
         return results
 
     def update(self, client_id: int, full_name: str, phone: str, email: str):
+        # Перевірка на дублікат телефону при редагуванні (#9)
+        existing = self.session.query(Client).filter(Client.phone == phone, Client.id != client_id).first()
+        if existing:
+            raise ValueError("Клієнт з таким номером телефону вже існує")
+
         client = self.session.query(Client).filter(Client.id == client_id).first()
         if client:
             client.full_name = full_name
@@ -121,12 +127,14 @@ class OrderRepository:
             self.session.commit()
         return order
 
-    def filter_orders(self, status: str = None, master_id: int = None):
+    def filter_orders(self, status: str = None, master_id: int = None, date_from=None, date_to=None):
         query = self.session.query(Order)
         if status:
             query = query.filter(Order.status == status)
         if master_id:
             query = query.filter(Order.master_id == master_id)
+        if date_from and date_to: # (#14)
+            query = query.filter(Order.received_at >= date_from, Order.received_at <= date_to)
         return query.order_by(Order.received_at.desc()).all()
 
 class PartRepository:
@@ -134,17 +142,18 @@ class PartRepository:
         self.session = session
 
     def create(self, name: str, vendor_code: str, quantity: int, purchase_price: float, sale_price: float) -> Part:
-        part = Part(
-            name=name,
-            vendor_code=vendor_code,
-            quantity_in_stock=quantity,
-            purchase_price=purchase_price,
-            sale_price=sale_price
-        )
-        self.session.add(part)
-        self.session.commit()
-        self.session.refresh(part)
-        return part
+        try:
+            part = Part(
+                name=name, vendor_code=vendor_code, quantity_in_stock=quantity,
+                purchase_price=purchase_price, sale_price=sale_price
+            )
+            self.session.add(part)
+            self.session.commit()
+            self.session.refresh(part)
+            return part
+        except IntegrityError:
+            self.session.rollback()
+            raise ValueError("Запчастина з таким артикулом вже існує")
 
     def get_all(self):
         """Отримує всі запчастини, сортуючи ті, що закінчуються, нагору"""

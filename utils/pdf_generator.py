@@ -4,6 +4,7 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import config
+import textwrap
 from models.models import Order
 
 
@@ -48,11 +49,19 @@ def generate_receipt(order: Order) -> str:
 
     c.drawString(50, 380, "Опис несправності:")
     # Розбиття довгого тексту на рядки (спрощений варіант)
-    c.drawString(50, 360, order.problem_description[:60])
+    c.drawString(50, 380, "Опис несправності:")
 
-    c.drawString(50, 320, "-" * 50)
-    c.drawString(50, 300, f"Попередня вартість: {order.price} грн")
-    c.drawString(50, 280, f"Статус: {order.status}")
+    y_pos = 360
+    # Автоматичний перенос тексту (ширина 60 символів)
+    wrapped_text = textwrap.wrap(order.problem_description, width=60)
+    for line in wrapped_text:
+        c.drawString(50, y_pos, line)
+        y_pos -= 15  # Відступ для наступного рядка
+
+    # Відніміть значення y_pos для наступних блоків, щоб текст не наліз на ціну
+    c.drawString(50, y_pos - 20, "-" * 50)
+    c.drawString(50, y_pos - 40, f"Попередня вартість: {order.price} грн")
+    c.drawString(50, y_pos - 60, f"Статус: {order.status}")
 
     c.drawString(50, 200, "Підпис приймальника: __________________")
     c.drawString(50, 150, "Підпис клієнта: __________________")

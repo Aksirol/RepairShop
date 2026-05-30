@@ -38,15 +38,22 @@ class OrderService:
         if new_status not in config.ORDER_STATUSES:
             raise ValueError(f"Недійсний статус. Доступні: {config.ORDER_STATUSES}")
 
-        # T3.6: Перевірка наявності майстра перед початком роботи
+        # --- ДОДАНО: Контроль валідних переходів ---
+        VALID_TRANSITIONS = {
+            config.STATUS_NEW: [config.STATUS_IN_PROGRESS],
+            config.STATUS_IN_PROGRESS: [config.STATUS_NEEDS_PARTS, config.STATUS_DONE],
+            config.STATUS_NEEDS_PARTS: [config.STATUS_IN_PROGRESS, config.STATUS_DONE],
+            config.STATUS_DONE: [config.STATUS_ISSUED],
+            config.STATUS_ISSUED: []
+        }
+
+        if order.status != new_status and new_status not in VALID_TRANSITIONS.get(order.status, []):
+            raise ValueError(f"Неможливий перехід статусу: {order.status} -> {new_status}")
+        # -------------------------------------------
+
         if new_status == config.STATUS_IN_PROGRESS and not order.master_id:
             raise ValueError("Призначте майстра перед початком роботи")
 
-        # T3.2: Заборонений перехід
-        if order.status == config.STATUS_ISSUED and new_status == config.STATUS_NEW:
-            raise ValueError("Неможливий перехід статусу: Видано -> Новий")
-
-        # Бізнес-логіка дозволених статусів
         if new_status == config.STATUS_DONE and order.status != config.STATUS_DONE:
             order.completed_at = date.today()
 
