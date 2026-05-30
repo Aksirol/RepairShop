@@ -201,39 +201,74 @@ class OrdersView(ctk.CTkFrame):
             traceback.print_exc()  # Виведе деталі в консоль для діагностики
             messagebox.showerror("Помилка", f"Критична помилка при створенні замовлення: {e}")
 
+    def delete_order(self, order_id):
+        if messagebox.askyesno("Видалення", f"Ви впевнені, що хочете безповоротно видалити замовлення №{order_id}?"):
+            self.order_repo.delete(order_id)
+            self.load_orders()
+
     def load_orders(self, choice=None):
-        """Завантаження замовлень у праву панель із урахуванням обраного фільтра статусів"""
+        """Завантаження замовлень у вигляді таблиці"""
         try:
             status_filter = self.combo_filter_status.get()
             status = None if status_filter == "Всі статуси" else status_filter
 
             orders = self.order_repo.filter_orders(status=status)
 
-            # ВИПРАВЛЕННЯ 1: Безпечне очищення списку через масив віджетів
             for widget in self.order_widgets:
                 widget.destroy()
             self.order_widgets.clear()
 
             if not orders:
-                lbl = ctk.CTkLabel(self.scrollable_frame, text="Замовлень із таким статусом не знайдено",
-                                   font=("Arial", 12, "italic"))
-                lbl.pack(pady=10)
+                lbl = ctk.CTkLabel(self.scrollable_frame, text="Замовлень не знайдено", font=("Arial", 12, "italic"))
+                lbl.grid(row=0, column=0, pady=10)
                 self.order_widgets.append(lbl)
                 return
 
-            for o in orders:
-                client_name = o.client.full_name if o.client else "Невідомий клієнт"
-                device_info = f"{o.device.type} {o.device.brand} {o.device.model}" if o.device else "Пристрій видалено"
+            # Налаштування колонок таблиці
+            self.scrollable_frame.grid_columnconfigure(0, weight=0)  # ID
+            self.scrollable_frame.grid_columnconfigure(1, weight=1)  # Клієнт
+            self.scrollable_frame.grid_columnconfigure(2, weight=1)  # Пристрій
+            self.scrollable_frame.grid_columnconfigure(3, weight=0)  # Статус
+            self.scrollable_frame.grid_columnconfigure(4, weight=0)  # Ціна
+            self.scrollable_frame.grid_columnconfigure(5, weight=0)  # Дії
 
-                item_text = f"№{o.id} | {client_name} — {device_info} | Статус: {o.status} | Ціна: {o.price} грн"
-
-                lbl = ctk.CTkLabel(self.scrollable_frame, text=item_text, font=("Arial", 12), anchor="w")
-                lbl.pack(anchor="w", pady=4, padx=5, fill="x")
-
-                # Додаємо у масив для подальшого безпечного видалення
+            # Заголовки
+            headers = ["№", "Клієнт", "Пристрій", "Статус", "Ціна", "Дії"]
+            for col, text in enumerate(headers):
+                lbl = ctk.CTkLabel(self.scrollable_frame, text=text, font=("Arial", 12, "bold"))
+                lbl.grid(row=0, column=col, sticky="w", padx=5, pady=5)
                 self.order_widgets.append(lbl)
 
+            # Рядки з даними
+            for row_idx, o in enumerate(orders, start=1):
+                client_name = o.client.full_name if o.client else "Невідомо"
+                device_info = f"{o.device.brand} {o.device.model}" if o.device else "Видалено"
+
+                lbl_id = ctk.CTkLabel(self.scrollable_frame, text=str(o.id))
+                lbl_id.grid(row=row_idx, column=0, sticky="w", padx=5, pady=2)
+
+                lbl_client = ctk.CTkLabel(self.scrollable_frame, text=client_name)
+                lbl_client.grid(row=row_idx, column=1, sticky="w", padx=5, pady=2)
+
+                lbl_dev = ctk.CTkLabel(self.scrollable_frame, text=device_info)
+                lbl_dev.grid(row=row_idx, column=2, sticky="w", padx=5, pady=2)
+
+                # Колір статусу
+                status_color = "#28a745" if o.status in ["Готово", "Видано"] else "default_theme"
+                if status_color == "default_theme": status_color = ["#000000", "#FFFFFF"]
+
+                lbl_status = ctk.CTkLabel(self.scrollable_frame, text=o.status, text_color=status_color)
+                lbl_status.grid(row=row_idx, column=3, sticky="w", padx=5, pady=2)
+
+                lbl_price = ctk.CTkLabel(self.scrollable_frame, text=f"{o.price} грн")
+                lbl_price.grid(row=row_idx, column=4, sticky="w", padx=5, pady=2)
+
+                btn_del = ctk.CTkButton(self.scrollable_frame, text="❌", width=30, fg_color="#d9534f",
+                                        hover_color="#c9302c",
+                                        command=lambda oid=o.id: self.delete_order(oid))
+                btn_del.grid(row=row_idx, column=5, sticky="w", padx=5, pady=2)
+
+                self.order_widgets.extend([lbl_id, lbl_client, lbl_dev, lbl_status, lbl_price, btn_del])
+
         except Exception as e:
-            import traceback
-            traceback.print_exc()
             print(f"Помилка завантаження реєстру замовлень: {e}")

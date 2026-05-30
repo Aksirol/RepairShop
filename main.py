@@ -19,14 +19,14 @@ class MainWindow(ctk.CTk):
         self.geometry("1200x700")
         self.user_role = user_role
 
-        # Налаштування сітки (2 колонки: 1 для меню, 1 для контенту)
+        # ДОДАНО: Правильне перехоплення закриття вікна
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
         self.setup_sidebar()
         self.setup_frames()
-
-        # За замовчуванням відкриваємо Дашборд
         self.show_frame("dashboard")
 
     def setup_sidebar(self):
@@ -93,6 +93,13 @@ class MainWindow(ctk.CTk):
         elif frame_name == "orders" and hasattr(frame, 'refresh_data'):
             # Викликаємо комплексне оновлення комбобоксів та замовлень
             frame.refresh_data()
+
+    def on_closing(self):
+        """Безпечне закриття БД та вікна, що усуває помилку 'invalid command name'"""
+        for frame in self.frames.values():
+            if hasattr(frame, 'db_session'):
+                frame.db_session.close()
+        self.destroy()  # Виклик оригінального безпечного методу CustomTkinter
 
 
 def start_app(user_role):

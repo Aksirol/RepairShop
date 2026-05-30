@@ -137,6 +137,15 @@ class OrderRepository:
             query = query.filter(Order.received_at >= date_from, Order.received_at <= date_to)
         return query.order_by(Order.received_at.desc()).all()
 
+    def delete(self, order_id: int):
+        order = self.get_by_id(order_id)
+        if order:
+            # Видаляємо зв'язки з запчастинами, щоб не було конфліктів
+            for op in order.order_parts:
+                self.session.delete(op)
+            self.session.delete(order)
+            self.session.commit()
+
 class PartRepository:
     def __init__(self, session):
         self.session = session
@@ -168,3 +177,28 @@ class PartRepository:
             part.quantity_in_stock += quantity_added
             self.session.commit()
         return part
+
+    def update(self, part_id: int, name: str, vendor_code: str, quantity: int, purchase_price: float,
+               sale_price: float):
+        part = self.get_by_id(part_id)
+        if part:
+            existing = self.session.query(Part).filter(Part.vendor_code == vendor_code, Part.id != part_id).first()
+            if existing:
+                raise ValueError("Запчастина з таким артикулом вже існує")
+            part.name = name
+            part.vendor_code = vendor_code
+            part.quantity_in_stock = quantity
+            part.purchase_price = purchase_price
+            part.sale_price = sale_price
+            self.session.commit()
+        return part
+
+    def delete(self, part_id: int):
+        part = self.get_by_id(part_id)
+        if part:
+            try:
+                self.session.delete(part)
+                self.session.commit()
+            except IntegrityError:
+                self.session.rollback()
+                raise ValueError("Неможливо видалити запчастину, вона використовується в замовленнях!")
