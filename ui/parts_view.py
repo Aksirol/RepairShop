@@ -44,6 +44,8 @@ class PartsView(ctk.CTkFrame):
         self.scrollable_frame = ctk.CTkScrollableFrame(self.list_frame, label_text="Складський реєстр")
         self.scrollable_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
+        self.part_widgets = []
+
         self.load_parts()
 
     def save_part(self):
@@ -71,18 +73,17 @@ class PartsView(ctk.CTkFrame):
             messagebox.showerror("Помилка", f"Перевірте правильність вводу числових даних.\nДеталі: {e}")
 
     def load_parts(self):
-        for widget in self.scrollable_frame.winfo_children():
+        # БЕЗПЕЧНЕ ОЧИЩЕННЯ
+        for widget in self.part_widgets:
             widget.destroy()
+        self.part_widgets.clear()
 
         parts = self.part_repo.get_all()
 
         for part in parts:
-            # Сповіщення про малий залишок (виділення червоним)
             text_color = "#FF4C4C" if part.quantity_in_stock < 3 else "default_theme"
-
-            # Якщо використовуємо світлу тему, краще явно вказати чорний/білий
             if text_color == "default_theme":
-                text_color = ["#000000", "#FFFFFF"]  # CustomTkinter підтримує масиви для Light/Dark mode
+                text_color = ["#000000", "#FFFFFF"]
 
             item_text = f"[{part.vendor_code}] {part.name} | Залишок: {part.quantity_in_stock} шт. | Ціна: {part.sale_price} грн"
 
@@ -93,3 +94,4 @@ class PartsView(ctk.CTkFrame):
                 font=("Arial", 12, "bold" if part.quantity_in_stock < 3 else "normal")
             )
             lbl.pack(anchor="w", pady=2, padx=5)
+            self.part_widgets.append(lbl)

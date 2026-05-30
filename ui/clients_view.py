@@ -44,6 +44,8 @@ class ClientsView(ctk.CTkFrame):
         self.scrollable_frame = ctk.CTkScrollableFrame(self.list_frame, label_text="Список клієнтів")
         self.scrollable_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
+        self.order_widgets = []
+
         self.load_clients()
 
     def save_client(self):
@@ -73,9 +75,10 @@ class ClientsView(ctk.CTkFrame):
         self.load_clients()
 
     def load_clients(self, search_query=""):
-        # Очищення поточного списку
-        for widget in self.scrollable_frame.winfo_children():
+        # БЕЗПЕЧНЕ ОЧИЩЕННЯ
+        for widget in self.client_widgets:
             widget.destroy()
+        self.client_widgets.clear()
 
         if search_query:
             clients = self.client_repo.search(search_query)
@@ -85,6 +88,7 @@ class ClientsView(ctk.CTkFrame):
         for client in clients:
             lbl = ctk.CTkLabel(self.scrollable_frame, text=f"{client.full_name} | {client.phone}")
             lbl.pack(anchor="w", pady=2)
+            self.client_widgets.append(lbl)
 
     def on_search(self, event):
         query = self.entry_search.get()
